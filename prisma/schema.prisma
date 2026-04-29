@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  accent       String   @default("us")
+  createdAt    DateTime @default(now())
+
+  progresses UserWordProgress[]
+  userBanks  UserBank[]
+  events     SessionEvent[]
+}
+
+model UserBank {
+  id       String   @id @default(cuid())
+  userId   String
+  bookId   String
+  sortRule String   @default("rank")
+  addedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookId])
+}
+
+model UserWordProgress {
+  id             String    @id @default(cuid())
+  userId         String
+  bookId         String
+  wordRank       Int
+  headWord       String
+  status         String    @default("NEW")
+  interval       Int       @default(0)
+  easeFactor     Float     @default(2.5)
+  repetitions    Int       @default(0)
+  nextReviewDate DateTime?
+  detailViewed   Boolean   @default(false)
+  lastReviewedAt DateTime?
+  reviewCount    Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookId, wordRank])
+  @@index([userId, nextReviewDate])
+  @@index([userId, status])
+}
+
+model SessionEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  payload   String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
