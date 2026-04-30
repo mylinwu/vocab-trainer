@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
+import { GlobalLoadingProvider } from "@/components/GlobalLoading";
 import VocabDevToolsProvider from "@/components/VocabDevToolsProvider";
 
 const cormorant = Cormorant_Garamond({
@@ -30,8 +31,10 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" className={`${cormorant.variable} ${inter.variable}`}>
       <body>
-        <VocabDevToolsProvider />
-        {children}
+        <GlobalLoadingProvider>
+          <VocabDevToolsProvider />
+          {children}
+        </GlobalLoadingProvider>
       </body>
     </html>
   );

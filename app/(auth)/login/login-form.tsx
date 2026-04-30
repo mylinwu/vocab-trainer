@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useGlobalLoading } from "@/components/GlobalLoading";
 import styles from "../auth.module.css";
 import { loginAction } from "./actions";
 
@@ -9,6 +10,7 @@ export function LoginForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const { withLoading } = useGlobalLoading();
 
   return (
     <form
@@ -20,7 +22,10 @@ export function LoginForm() {
         const password = String(fd.get("password") ?? "");
         start(async () => {
           setError(null);
-          const res = await loginAction({ username, password });
+          const res = await withLoading(
+            () => loginAction({ username, password }),
+            "正在登录",
+          );
           if (!res.ok) {
             setError(res.error);
             return;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useGlobalLoading } from "@/components/GlobalLoading";
 import styles from "./banks.module.css";
 import { enableBank, disableBank } from "./actions";
 
@@ -25,6 +26,7 @@ export function BanksList({ items }: { items: Item[] }) {
 function Row({ item }: { item: Item }) {
   const [pending, start] = useTransition();
   const [rule, setRule] = useState(item.sortRule);
+  const { withLoading } = useGlobalLoading();
   return (
     <li className={styles.item}>
       <div className={styles.head}>
@@ -38,7 +40,11 @@ function Row({ item }: { item: Item }) {
           onChange={(e) => {
             const next = e.target.value;
             setRule(next);
-            if (item.enabled) start(() => enableBank(item.bookId, next));
+            if (item.enabled) {
+              start(() => {
+                void withLoading(() => enableBank(item.bookId, next), "正在更新词库");
+              });
+            }
           }}
           disabled={pending}
         >
@@ -51,7 +57,11 @@ function Row({ item }: { item: Item }) {
           <button
             className={`${styles.btn} ${styles.btnGhost}`}
             disabled={pending}
-            onClick={() => start(() => disableBank(item.bookId))}
+            onClick={() => {
+              start(() => {
+                void withLoading(() => disableBank(item.bookId), "正在更新词库");
+              });
+            }}
           >
             停用
           </button>
@@ -59,7 +69,11 @@ function Row({ item }: { item: Item }) {
           <button
             className={styles.btn}
             disabled={pending}
-            onClick={() => start(() => enableBank(item.bookId, rule))}
+            onClick={() => {
+              start(() => {
+                void withLoading(() => enableBank(item.bookId, rule), "正在更新词库");
+              });
+            }}
           >
             启用
           </button>

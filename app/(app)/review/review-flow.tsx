@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { Check, Info, X } from "lucide-react";
+import { useGlobalLoading } from "@/components/GlobalLoading";
 import styles from "./review.module.css";
 import { useReviewFlowStore, rowKey } from "@/lib/stores/review-flow-store";
 import { WordDetailModal } from "@/components/WordDetailModal";
@@ -21,7 +23,8 @@ export function ReviewFlow({
   accent: string;
 }) {
   const router = useRouter();
-  const [, start] = useTransition();
+  const { withLoading } = useGlobalLoading();
+  const reviewSubmittingRef = useRef(false);
 
   const rows = useReviewFlowStore((s) => s.rows);
   const detailWord = useReviewFlowStore((s) => s.detailWord);
@@ -52,18 +55,24 @@ export function ReviewFlow({
     logDetailViewed(row.word.bookId, row.word.wordRank).catch(() => {});
   }
 
-  function answer(idx: number, remembered: boolean) {
+  async function answer(idx: number, remembered: boolean) {
     const row = rows[idx];
-    start(async () => {
-      await submitReview({
-        bookId: row.word.bookId,
-        wordRank: row.word.wordRank,
-        headWord: row.word.headWord,
-        remembered,
-        detailViewed: row.detailViewed,
-      });
-    });
-    updateRow(rowKey(row.word), { answered: true, remembered });
+    if (row.answered || reviewSubmittingRef.current) return;
+    reviewSubmittingRef.current = true;
+    try {
+      await withLoading(async () => {
+        await submitReview({
+          bookId: row.word.bookId,
+          wordRank: row.word.wordRank,
+          headWord: row.word.headWord,
+          remembered,
+          detailViewed: row.detailViewed,
+        });
+      }, "正在提交复习");
+      updateRow(rowKey(row.word), { answered: true, remembered });
+    } finally {
+      reviewSubmittingRef.current = false;
+    }
   }
 
   function finish() {
@@ -114,23 +123,23 @@ export function ReviewFlow({
                 aria-label="详情"
                 onClick={() => openDetail(idx)}
               >
-                …
+                <Info size={16} strokeWidth={2} />
               </button>
               <button
                 className={`${styles.iconBtn} ${styles.iconBtnNo}`}
                 aria-label="没记住"
-                onClick={() => answer(idx, false)}
+                onClick={() => void answer(idx, false)}
                 disabled={row.answered}
               >
-                ✕
+                <X size={16} strokeWidth={2.5} />
               </button>
               <button
                 className={`${styles.iconBtn} ${styles.iconBtnYes}`}
                 aria-label="记住了"
-                onClick={() => answer(idx, true)}
+                onClick={() => void answer(idx, true)}
                 disabled={row.answered}
               >
-                ✓
+                <Check size={16} strokeWidth={2.5} />
               </button>
             </div>
           </li>

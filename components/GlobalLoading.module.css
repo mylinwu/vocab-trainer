@@ -1,0 +1,47 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: var(--s-md);
+  background: color-mix(in srgb, var(--canvas) 58%, transparent);
+  backdrop-filter: blur(5px) saturate(115%);
+}
+
+.indicator {
+  min-width: 132px;
+  min-height: 104px;
+  display: grid;
+  place-items: center;
+  gap: var(--s-sm);
+  padding: var(--s-lg);
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--hairline));
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--canvas) 94%, var(--surface-card));
+  box-shadow: 0 18px 48px rgba(20, 20, 19, 0.14), var(--shadow-sm);
+}
+
+.icon {
+  color: var(--primary);
+  animation: spin 0.9s linear infinite;
+}
+
+.text {
+  color: var(--body-strong);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon {
+    animation-duration: 1.8s;
+  }
+}

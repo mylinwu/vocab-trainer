@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { X } from "lucide-react";
 import { Info } from "lucide-react";
+import { useGlobalLoading } from "@/components/GlobalLoading";
 import styles from "./learn.module.css";
 import { useLearnFlowStore, rowKey } from "@/lib/stores/learn-flow-store";
 import { WordDetailModal } from "@/components/WordDetailModal";
@@ -25,7 +26,9 @@ function playTts(word: string, lastPlayRef: React.MutableRefObject<number>, acce
 export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").PickedWord[]; accent: string }) {
   const router = useRouter();
   const [, start] = useTransition();
+  const { withLoading } = useGlobalLoading();
   const lastPlayRef = useRef(0);
+  const reviewSubmittingRef = useRef(false);
 
   const phase = useLearnFlowStore((s) => s.phase);
   const rows = useLearnFlowStore((s) => s.rows);
@@ -108,24 +111,48 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
     setReviewIdx(0);
   }
 
-  function answerReview(remembered: boolean) {
+  async function answerReview(remembered: boolean) {
+    if (reviewSubmittingRef.current) return;
     const cur = learnQueue[reviewIdx];
     if (!cur) return;
-    updateRow(rowKey(cur.word), { reviewResult: remembered ? "remembered" : "forgotten" });
-    start(async () => {
-      await submitReview({
-        bookId: cur.word.bookId,
-        wordRank: cur.word.wordRank,
-        headWord: cur.word.headWord,
-        remembered,
-        detailViewed: cur.detailViewed,
-      });
-    });
-    if (reviewIdx + 1 >= learnQueue.length) {
-      logSessionEvent("session_complete", { learned: learnQueue.length }).catch(() => {});
-      setPhase("done");
-    } else {
-      setReviewIdx(reviewIdx + 1);
+    reviewSubmittingRef.current = true;
+    try {
+      await withLoading(async () => {
+        await submitReview({
+          bookId: cur.word.bookId,
+          wordRank: cur.word.wordRank,
+          headWord: cur.word.headWord,
+          remembered,
+          detailViewed: cur.detailViewed,
+        });
+      }, "正在提交复习");
+      updateRow(rowKey(cur.word), { reviewResult: remembered ? "remembered" : "forgotten" });
+      if (reviewIdx + 1 >= learnQueue.length) {
+        logSessionEvent("session_complete", { learned: learnQueue.length }).catch(() => {});
+        setPhase("done");
+      } else {
+        setReviewIdx(reviewIdx + 1);
+      }
+    } finally {
+      reviewSubmittingRef.current = false;
+    }
+  }
+
+  function handleBack() {
+    if (phase === "pick") {
+      router.replace("/dashboard");
+      router.refresh();
+      return;
+    }
+    if (phase === "study") {
+      setGroupIdx(0);
+      setPhase("pick");
+      return;
+    }
+    if (phase === "review") {
+      setGroupIdx(Math.max(learnGroups.length - 1, 0));
+      setReviewIdx(0);
+      setPhase("study");
     }
   }
 
@@ -199,6 +226,9 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
           })}
         </ul>
         <div className={styles.foot}>
+          <button className={styles.secondaryBtn} onClick={handleBack}>
+            返回
+          </button>
           <button className={styles.primaryBtn} onClick={finishPicking}>
             结束选词（{learnQueue.length} 个待学习）
           </button>
@@ -248,6 +278,9 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
           })}
         </ul>
         <div className={styles.foot}>
+          <button className={styles.secondaryBtn} onClick={handleBack}>
+            返回
+          </button>
           {groupIdx > 0 && (
             <button className={styles.secondaryBtn} onClick={prevGroup}>
               上一组
@@ -307,10 +340,13 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
         </li>
       </ul>
       <div className={styles.foot}>
-        <button className={styles.secondaryBtn} onClick={() => answerReview(false)}>
+        <button className={styles.secondaryBtn} onClick={handleBack}>
+          返回
+        </button>
+        <button className={styles.secondaryBtn} onClick={() => void answerReview(false)}>
           没记住
         </button>
-        <button className={styles.primaryBtn} onClick={() => answerReview(true)}>
+        <button className={styles.primaryBtn} onClick={() => void answerReview(true)}>
           记住了
         </button>
       </div>

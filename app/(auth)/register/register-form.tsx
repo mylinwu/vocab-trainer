@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useGlobalLoading } from "@/components/GlobalLoading";
 import styles from "../auth.module.css";
 import { registerAction } from "./actions";
 import { loginAction } from "../login/actions";
@@ -10,6 +11,7 @@ export function RegisterForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const { withLoading } = useGlobalLoading();
 
   return (
     <form
@@ -21,14 +23,19 @@ export function RegisterForm() {
         const password = String(fd.get("password") ?? "");
         start(async () => {
           setError(null);
-          const res = await registerAction({ username, password });
-          if (!res.ok) {
-            setError(res.error);
-            return;
-          }
-          const r = await loginAction({ username, password });
-          if (!r.ok) {
-            setError("注册成功，但自动登录失败，请手动登录");
+          const result = await withLoading(async () => {
+            const res = await registerAction({ username, password });
+            if (!res.ok) return res;
+
+            const r = await loginAction({ username, password });
+            if (!r.ok) {
+              return { ok: false as const, error: "注册成功，但自动登录失败，请手动登录" };
+            }
+
+            return { ok: true as const };
+          }, "正在注册");
+          if (!result.ok) {
+            setError(result.error);
             return;
           }
           router.replace("/dashboard");
