@@ -152,7 +152,7 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
   if (phase === "pick") {
     const remaining = rows.filter((r) => !r.pickResult).length;
     return (
-      <>
+      <div className={styles.flow}>
         <div className={styles.head}>
           <span className={styles.phase}>选词阶段 · 认识打勾，不认识打叉</span>
           <span className={styles.progress}>
@@ -203,7 +203,7 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
             结束选词（{learnQueue.length} 个待学习）
           </button>
         </div>
-      </>
+      </div>
     );
   }
 
@@ -211,7 +211,7 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
   if (phase === "study") {
     const group = learnGroups[groupIdx] ?? [];
     return (
-      <>
+      <div className={styles.flow}>
         <div className={styles.head}>
           <span className={styles.phase}>
             学习阶段 · 第 {groupIdx + 1} / {learnGroups.length} 组
@@ -271,7 +271,7 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
             onClose={() => setDetailWord(null)}
           />
         )}
-      </>
+      </div>
     );
   }
 
@@ -280,7 +280,7 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
   if (!cur) return null;
   const curKey = rowKey(cur.word);
   return (
-    <>
+    <div className={styles.flow}>
       <div className={styles.head}>
         <span className={styles.phase}>本轮复习</span>
         <span className={styles.progress}>
@@ -322,6 +322,6 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
           onClose={() => setDetailWord(null)}
         />
       )}
-    </>
+    </div>
   );
 }

@@ -29,12 +29,20 @@
 }
 .btn:hover { background: var(--primary-active); color: var(--on-primary); }
 
+.flow {
+  max-height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: var(--s-md);
   margin-bottom: var(--s-lg);
+  flex-shrink: 0;
 }
 .phase {
   font-size: 12px;
@@ -49,11 +57,28 @@
   font-size: 14px;
 }
 
-.list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--s-xs); }
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  flex-direction: column;
+  gap: var(--s-xs);
+  scrollbar-gutter: stable;
+  padding-right: var(--s-xs);
+}
+.list::-webkit-scrollbar { width: 4px; }
+.list::-webkit-scrollbar-track { background: transparent; }
+.list::-webkit-scrollbar-thumb { background: var(--hairline); border-radius: 4px; }
 
 .row {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   background: var(--surface-card);
   border: 1px solid var(--hairline);
   border-radius: var(--r-lg);
@@ -113,6 +138,7 @@
   display: flex;
   gap: var(--s-sm);
   justify-content: flex-end;
+  flex-shrink: 0;
 }
 .primaryBtn {
   padding: 12px 20px;
@@ -355,6 +381,43 @@
 }
 
 @media (max-width: 768px) {
+  .head {
+    align-items: flex-start;
+    margin: calc(var(--s-md) * -1) calc(var(--s-sm) * -1) var(--s-md);
+    padding: var(--s-md) var(--s-sm);
+    background: color-mix(in srgb, var(--canvas) 94%, transparent);
+    border-bottom: 1px solid var(--hairline);
+    backdrop-filter: saturate(140%) blur(10px);
+  }
+  .phase {
+    letter-spacing: 0;
+    text-transform: none;
+    line-height: 1.5;
+  }
+  .list {
+    gap: var(--s-sm);
+    padding: 0 4px;
+  }
+  .rowMain {
+    padding: var(--s-md);
+  }
+  .actions {
+    padding-right: var(--s-sm);
+    gap: var(--s-xs);
+  }
+  .foot {
+    margin: var(--s-md) calc(var(--s-sm) * -1) calc(var(--s-xxl) * -1);
+    padding: var(--s-md) var(--s-sm);
+    background: var(--canvas);
+    border-top: 1px solid var(--hairline);
+  }
+  .primaryBtn,
+  .secondaryBtn {
+    min-width: 0;
+  }
+  .primaryBtn {
+    flex: 1;
+  }
   .word { font-size: 20px; }
   .iconBtn { width: 40px; height: 40px; }
   .modalInner { padding: var(--s-lg); }
