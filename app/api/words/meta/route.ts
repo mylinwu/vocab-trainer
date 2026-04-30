@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { statusFromInterval } from "@/lib/sm2";
 import type { WordMetaStatus } from "@/lib/dev-tools";
 
+export const maxDuration = 60;
+
 export async function GET(request: NextRequest) {
   const session = await auth();
   const userId = (session?.user as { id?: string } | undefined)?.id;

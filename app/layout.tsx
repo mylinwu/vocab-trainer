@@ -22,6 +22,8 @@ export const metadata: Metadata = {
   description: "专注、纯粹的单词学习工具",
 };
 
+export const maxDuration = 60;
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
