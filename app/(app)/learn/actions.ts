@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/session";
 import { applyKnownOnPick, applySm2, gradeFromReview } from "@/lib/sm2";
@@ -94,7 +93,6 @@ export async function submitReview(input: {
     wordRank,
     detailViewed,
   });
-  revalidatePath("/dashboard");
 }
 
 export async function logDetailViewed(bookId: string, wordRank: number) {
