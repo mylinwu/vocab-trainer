@@ -1,26 +1,15 @@
 "use client";
 
-import { useMemo, useState, useTransition, useEffect, useRef } from "react";
+import { useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { X } from "lucide-react";
 import { Info } from "lucide-react";
 import styles from "./learn.module.css";
-import type { PickedWord } from "@/lib/scheduler";
+import { useLearnFlowStore, rowKey } from "@/lib/stores/learn-flow-store";
 import { WordDetailModal } from "@/components/WordDetailModal";
 import { ttsUrl } from "@/lib/tts";
 import { markKnown, submitReview, logDetailViewed, logSessionEvent } from "./actions";
-
-type Phase = "pick" | "study" | "review" | "done";
-
-interface RowState {
-  word: PickedWord;
-  showTranslation: boolean;
-  clicked: boolean;
-  pickResult?: "known" | "unknown";
-  detailViewed: boolean;
-  reviewResult?: "remembered" | "forgotten";
-}
 
 const GROUP_SIZE = 5;
 const TTS_DEBOUNCE_MS = 300;
@@ -33,40 +22,36 @@ function playTts(word: string, lastPlayRef: React.MutableRefObject<number>, acce
   audio.play().catch(() => {});
 }
 
-function rowKey(word: PickedWord) {
-  return `${word.bookId}::${word.wordRank}`;
-}
-
-export function LearnFlow({ words, accent }: { words: PickedWord[]; accent: string }) {
+export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").PickedWord[]; accent: string }) {
   const router = useRouter();
-  const [phase, setPhase] = useState<Phase>("pick");
-  const [rows, setRows] = useState<RowState[]>(() =>
-    words.map((w) => ({ word: w, showTranslation: false, clicked: false, detailViewed: false })),
-  );
-  const [groupIdx, setGroupIdx] = useState(0);
-  const [reviewIdx, setReviewIdx] = useState(0);
-  const [detailWord, setDetailWord] = useState<PickedWord | null>(null);
   const [, start] = useTransition();
   const lastPlayRef = useRef(0);
 
+  const phase = useLearnFlowStore((s) => s.phase);
+  const rows = useLearnFlowStore((s) => s.rows);
+  const groupIdx = useLearnFlowStore((s) => s.groupIdx);
+  const reviewIdx = useLearnFlowStore((s) => s.reviewIdx);
+  const detailWord = useLearnFlowStore((s) => s.detailWord);
+  const setPhase = useLearnFlowStore((s) => s.setPhase);
+  const updateRow = useLearnFlowStore((s) => s.updateRow);
+  const setGroupIdx = useLearnFlowStore((s) => s.setGroupIdx);
+  const setReviewIdx = useLearnFlowStore((s) => s.setReviewIdx);
+  const setDetailWord = useLearnFlowStore((s) => s.setDetailWord);
+  const reset = useLearnFlowStore((s) => s.reset);
+
+  useEffect(() => {
+    reset(words);
+  }, [words, reset]);
+
   useEffect(() => {
     logSessionEvent("session_start", { count: words.length }).catch(() => {});
-  }, [words.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const learnQueue = useMemo(
-    () => rows.filter((r) => r.pickResult === "unknown"),
-    [rows],
-  );
-  const learnGroups = useMemo(() => {
-    const groups: RowState[][] = [];
-    for (let i = 0; i < learnQueue.length; i += GROUP_SIZE) {
-      groups.push(learnQueue.slice(i, i + GROUP_SIZE));
-    }
-    return groups;
-  }, [learnQueue]);
-
-  function updateRow(key: string, patch: Partial<RowState>) {
-    setRows((rs) => rs.map((r) => (rowKey(r.word) === key ? { ...r, ...patch } : r)));
+  const learnQueue = rows.filter((r) => r.pickResult === "unknown");
+  const learnGroups: typeof rows[] = [];
+  for (let i = 0; i < learnQueue.length; i += GROUP_SIZE) {
+    learnGroups.push(learnQueue.slice(i, i + GROUP_SIZE));
   }
 
   function onClickRow(key: string, headWord: string) {
@@ -88,6 +73,7 @@ export function LearnFlow({ words, accent }: { words: PickedWord[]; accent: stri
       await markKnown(row.word.bookId, row.word.wordRank, row.word.headWord);
     });
   }
+
   function pickUnknown(key: string) {
     updateRow(key, { pickResult: "unknown" });
   }
@@ -112,9 +98,11 @@ export function LearnFlow({ words, accent }: { words: PickedWord[]; accent: stri
   function nextGroup() {
     if (groupIdx < learnGroups.length - 1) setGroupIdx(groupIdx + 1);
   }
+
   function prevGroup() {
     if (groupIdx > 0) setGroupIdx(groupIdx - 1);
   }
+
   function endStudy() {
     setPhase("review");
     setReviewIdx(0);
@@ -167,14 +155,22 @@ export function LearnFlow({ words, accent }: { words: PickedWord[]; accent: stri
       <>
         <div className={styles.head}>
           <span className={styles.phase}>选词阶段 · 认识打勾，不认识打叉</span>
-          <span className={styles.progress}>剩余 {remaining}/{rows.length}</span>
+          <span className={styles.progress}>
+            剩余 {remaining}/{rows.length}
+          </span>
         </div>
         <ul className={styles.list}>
           {rows.map((r) => {
             const key = rowKey(r.word);
             return (
-              <li key={key} className={`${styles.row} ${r.pickResult ? styles.rowDone : ""}`}>
-                <button className={styles.rowMain} onClick={() => onClickRow(key, r.word.headWord)}>
+              <li
+                key={key}
+                className={`${styles.row} ${r.pickResult ? styles.rowDone : ""}`}
+              >
+                <button
+                  className={styles.rowMain}
+                  onClick={() => onClickRow(key, r.word.headWord)}
+                >
                   <span className={styles.word}>{r.word.headWord}</span>
                   <span className={styles.translation}>
                     {r.showTranslation ? r.word.translation : "（点击查看释义）"}
@@ -229,10 +225,13 @@ export function LearnFlow({ words, accent }: { words: PickedWord[]; accent: stri
             const key = rowKey(r.word);
             return (
               <li key={key} className={styles.row}>
-                <button className={styles.rowMain} onClick={() => onClickRow(key, r.word.headWord)}>
+                <button
+                  className={styles.rowMain}
+                  onClick={() => onClickRow(key, r.word.headWord)}
+                >
                   <span className={styles.word}>{r.word.headWord}</span>
                   <span className={styles.translation}>
-              {r.showTranslation ? r.word.translation : "（点击查看释义）"}
+                    {r.showTranslation ? r.word.translation : "（点击查看释义）"}
                   </span>
                 </button>
                 <div className={styles.actions}>
@@ -276,7 +275,7 @@ export function LearnFlow({ words, accent }: { words: PickedWord[]; accent: stri
     );
   }
 
-  // Phase: Review (this round)
+  // Phase: Review
   const cur = learnQueue[reviewIdx];
   if (!cur) return null;
   const curKey = rowKey(cur.word);

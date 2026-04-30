@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { loadBook, type BookEntry } from "@/lib/books";
+import { loadBook } from "@/lib/books";
 import { quickTranslation } from "@/lib/word-content";
 
 export interface PickedWord {
@@ -25,7 +25,7 @@ export async function pickNewWords(userId: string, limit = PICK_LIMIT): Promise<
   const candidates: PickedWord[] = [];
 
   for (const ub of userBanks) {
-    const entries = loadBook(ub.bookId);
+    const entries = await loadBook(ub.bookId);
     const unseen = entries.filter((e) => !learnedSet.has(`${e.bookId}::${e.wordRank}`));
     let chosen = unseen;
     if (ub.sortRule === "random") chosen = shuffle(unseen);
@@ -59,8 +59,14 @@ export async function pickReviewQueue(userId: string, limit = 100): Promise<Pick
     take: limit,
   });
 
+  const bookEntries = await Promise.all(
+    [...new Set(items.map((p) => p.bookId))].map((b) => loadBook(b as string)),
+  );
+  const bookMap = new Map(bookEntries.map((entries) => [entries[0]?.bookId ?? "", entries]));
+
   return items.map((p) => {
-    const entry = loadBook(p.bookId).find((e) => e.wordRank === p.wordRank);
+    const entries = bookMap.get(p.bookId) ?? [];
+    const entry = entries.find((e) => e.wordRank === p.wordRank);
     return {
       bookId: p.bookId,
       wordRank: p.wordRank,

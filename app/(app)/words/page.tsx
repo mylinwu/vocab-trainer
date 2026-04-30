@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireUserId } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getAccent } from "@/lib/preferences";
-import { getWord } from "@/lib/books";
+import { loadBook } from "@/lib/books";
 import { quickTranslation } from "@/lib/word-content";
 import { WordsList } from "./words-list";
 import type { Status } from "@/lib/sm2";
@@ -56,8 +56,14 @@ export default async function WordsPage({ searchParams }: PageProps) {
     prisma.userWordProgress.count({ where: { userId: uid, status } }),
   ]);
 
+  const bookEntries = await Promise.all(
+    [...new Set(rawWords.map((p) => p.bookId))].map((b) => loadBook(b as string)),
+  );
+  const bookMap = new Map(bookEntries.map((entries) => [entries[0]?.bookId ?? "", entries]));
+
   const words = rawWords.map((p) => {
-    const entry = getWord(p.bookId, p.wordRank);
+    const entries = bookMap.get(p.bookId) ?? [];
+    const entry = entries.find((e) => e.wordRank === p.wordRank);
     return {
       bookId: p.bookId,
       wordRank: p.wordRank,

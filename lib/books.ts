@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import fsp from "node:fs/promises";
 import path from "node:path";
 
 const BOOKS_DIR = path.join(process.cwd(), "public", "books");
@@ -22,11 +23,11 @@ export function scanBooks(): string[] {
     .sort();
 }
 
-export function loadBook(bookId: string): BookEntry[] {
+export async function loadBook(bookId: string): Promise<BookEntry[]> {
   if (cache.has(bookId)) return cache.get(bookId)!;
   const file = path.join(BOOKS_DIR, `${bookId}.json`);
   if (!fs.existsSync(file)) return [];
-  const raw = fs.readFileSync(file, "utf-8").trim();
+  const raw = (await fsp.readFile(file, "utf-8")).trim();
   const lines = raw.split(/\r?\n/).filter((l) => l.trim());
   const entries: BookEntry[] = [];
   for (const line of lines) {
@@ -54,12 +55,14 @@ export function loadBook(bookId: string): BookEntry[] {
   return entries;
 }
 
-export function getWord(bookId: string, wordRank: number): BookEntry | undefined {
-  return loadBook(bookId).find((e) => e.wordRank === wordRank);
+export async function getWord(bookId: string, wordRank: number): Promise<BookEntry | undefined> {
+  const entries = await loadBook(bookId);
+  return entries.find((e) => e.wordRank === wordRank);
 }
 
-export function bookSize(bookId: string): number {
-  return loadBook(bookId).length;
+export async function bookSize(bookId: string): Promise<number> {
+  const entries = await loadBook(bookId);
+  return entries.length;
 }
 
 export function clearBookCache(bookId?: string) {

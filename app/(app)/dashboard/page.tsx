@@ -89,5 +89,6 @@ function StatusBar({ label, count, status }: { label: string; count: number; sta
 }
 
 function sortRuleLabel(r: string) {
-  return { rank: "词频", alpha: "字母", length: "长度", random: "乱序" }[r as "rank"] ?? r;
+  const labels: Record<string, string> = { rank: "顺序", alpha: "字母", length: "长度", random: "乱序" };
+  return labels[r] ?? r;
 }

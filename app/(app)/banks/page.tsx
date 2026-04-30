@@ -13,13 +13,15 @@ export default async function BanksPage() {
     prisma.userBank.findMany({ where: { userId: uid } }),
   ]);
   const enabled = new Map(userBanks.map((u) => [u.bookId, u]));
-  const items = bookIds.map((bookId) => ({
-    bookId,
-    name: bookId,
-    totalWords: bookSize(bookId),
-    enabled: enabled.has(bookId),
-    sortRule: enabled.get(bookId)?.sortRule ?? "rank",
-  }));
+  const items = await Promise.all(
+    bookIds.map(async (bookId) => ({
+      bookId,
+      name: bookId,
+      totalWords: await bookSize(bookId),
+      enabled: enabled.has(bookId),
+      sortRule: enabled.get(bookId)?.sortRule ?? "rank",
+    })),
+  );
 
   return (
     <div className={styles.wrap}>

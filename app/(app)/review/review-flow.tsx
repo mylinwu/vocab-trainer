@@ -1,47 +1,54 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./review.module.css";
-import type { PickedWord } from "@/lib/scheduler";
+import { useReviewFlowStore, rowKey } from "@/lib/stores/review-flow-store";
 import { WordDetailModal } from "@/components/WordDetailModal";
 import { ttsUrl } from "@/lib/tts";
 import { submitReview, logDetailViewed } from "../learn/actions";
-
-interface RowState {
-  word: PickedWord;
-  showTranslation: boolean;
-  detailViewed: boolean;
-  answered: boolean;
-  remembered: boolean | null;
-}
 
 function playTts(word: string, accent: string) {
   const audio = new Audio(ttsUrl(word, accent as "us" | "uk"));
   audio.play().catch(() => {});
 }
 
-export function ReviewFlow({ words, accent }: { words: PickedWord[]; accent: string }) {
+export function ReviewFlow({
+  words,
+  accent,
+}: {
+  words: import("@/lib/scheduler").PickedWord[];
+  accent: string;
+}) {
   const router = useRouter();
-  const [rows, setRows] = useState<RowState[]>(() =>
-    words.map((w) => ({ word: w, showTranslation: false, detailViewed: false, answered: false, remembered: null })),
-  );
-  const [detailWord, setDetailWord] = useState<PickedWord | null>(null);
-  const [done, setDone] = useState(false);
   const [, start] = useTransition();
 
+  const rows = useReviewFlowStore((s) => s.rows);
+  const detailWord = useReviewFlowStore((s) => s.detailWord);
+  const done = useReviewFlowStore((s) => s.done);
+  const updateRow = useReviewFlowStore((s) => s.updateRow);
+  const setDetailWord = useReviewFlowStore((s) => s.setDetailWord);
+  const setDone = useReviewFlowStore((s) => s.setDone);
+  const reset = useReviewFlowStore((s) => s.reset);
+
+  useEffect(() => {
+    reset(words);
+  }, [words, reset]);
+
   const allAnswered = rows.every((r) => r.answered);
+  const answeredCount = rows.filter((r) => r.answered).length;
+  const rememberedCount = rows.filter((r) => r.answered && r.remembered).length;
 
   function onClickRow(idx: number) {
     const row = rows[idx];
     playTts(row.word.headWord, accent);
-    setRows((rs) => rs.map((r, i) => (i === idx ? { ...r, showTranslation: !r.showTranslation } : r)));
+    updateRow(rowKey(row.word), { showTranslation: !row.showTranslation });
   }
 
   function openDetail(idx: number) {
     const row = rows[idx];
     setDetailWord(row.word);
-    setRows((rs) => rs.map((r, i) => (i === idx ? { ...r, detailViewed: true } : r)));
+    updateRow(rowKey(row.word), { detailViewed: true });
     logDetailViewed(row.word.bookId, row.word.wordRank).catch(() => {});
   }
 
@@ -56,7 +63,7 @@ export function ReviewFlow({ words, accent }: { words: PickedWord[]; accent: str
         detailViewed: row.detailViewed,
       });
     });
-    setRows((rs) => rs.map((r, i) => (i === idx ? { ...r, answered: true, remembered } : r)));
+    updateRow(rowKey(row.word), { answered: true, remembered });
   }
 
   function finish() {
@@ -81,19 +88,20 @@ export function ReviewFlow({ words, accent }: { words: PickedWord[]; accent: str
     );
   }
 
-  const rememberedCount = rows.filter((r) => r.answered && r.remembered).length;
-
   return (
     <>
       <div className={styles.head}>
         <span className={styles.phase}>每日复习</span>
         <span className={styles.progress}>
-          {rows.filter((r) => r.answered).length}/{rows.length}
+          {answeredCount}/{rows.length}
         </span>
       </div>
       <ul className={styles.list}>
         {rows.map((row, idx) => (
-          <li key={`${row.word.bookId}-${row.word.wordRank}`} className={`${styles.row} ${row.answered ? styles.rowDone : ""}`}>
+          <li
+            key={rowKey(row.word)}
+            className={`${styles.row} ${row.answered ? styles.rowDone : ""}`}
+          >
             <button className={styles.rowMain} onClick={() => onClickRow(idx)}>
               <span className={styles.word}>{row.word.headWord}</span>
               <span className={styles.translation}>
@@ -130,7 +138,7 @@ export function ReviewFlow({ words, accent }: { words: PickedWord[]; accent: str
       </ul>
       <div className={styles.foot}>
         <span className={styles.summary}>
-          已完成 {rows.filter((r) => r.answered).length}/{rows.length}，记住了 {rememberedCount} 个
+          已完成 {answeredCount}/{rows.length}，记住了 {rememberedCount} 个
         </span>
         <button className={styles.secondaryBtn} onClick={finish} disabled={!allAnswered}>
           完成复习

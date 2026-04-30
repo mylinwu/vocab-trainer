@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { loadBook, bookSize } from "@/lib/books";
+import { bookSize } from "@/lib/books";
 import type { Status } from "@/lib/sm2";
 
 export interface DashboardStats {
@@ -48,27 +48,27 @@ export async function loadDashboardStats(userId: string): Promise<DashboardStats
   };
   for (const row of byStatus) statusCounts[row.status as Status] = row._count._all;
 
-  const learnedPerBook = new Map<string, number>();
-  const progresses = await prisma.userWordProgress.findMany({
+  const byBook = await prisma.userWordProgress.groupBy({
+    by: ["bookId"],
     where: { userId },
-    select: { bookId: true },
+    _count: { _all: true },
   });
-  for (const p of progresses) {
-    learnedPerBook.set(p.bookId, (learnedPerBook.get(p.bookId) ?? 0) + 1);
-  }
+  const learnedPerBook = new Map(byBook.map((b) => [b.bookId, b._count._all]));
 
-  const banks = userBanks.map((ub) => {
-    const total = bookSize(ub.bookId);
-    const learned = learnedPerBook.get(ub.bookId) ?? 0;
-    return {
-      bookId: ub.bookId,
-      name: ub.bookId,
-      total,
-      learned,
-      percent: total > 0 ? Math.round((learned / total) * 100) : 0,
-      sortRule: ub.sortRule,
-    };
-  });
+  const banks = await Promise.all(
+    userBanks.map(async (ub) => {
+      const total = await bookSize(ub.bookId);
+      const learned = learnedPerBook.get(ub.bookId) ?? 0;
+      return {
+        bookId: ub.bookId,
+        name: ub.bookId,
+        total,
+        learned,
+        percent: total > 0 ? Math.round((learned / total) * 100) : 0,
+        sortRule: ub.sortRule,
+      };
+    }),
+  );
 
   return { totalLearned, todayLearned, todayReviewDue, statusCounts, banks };
 }
