@@ -26,7 +26,10 @@ interface RawContent {
   syno?: { synos?: { tranCn?: string; pos?: string; hwds?: { w: string }[] }[] };
 }
 
-interface RawRoot { word?: { content?: RawContent } }
+interface RawRoot {
+  word?: { content?: RawContent };
+  content?: RawContent;
+}
 
 export function parseWordContent(headWord: string, contentJson: string): ParsedWord {
   let raw: RawRoot = {};
@@ -35,7 +38,7 @@ export function parseWordContent(headWord: string, contentJson: string): ParsedW
   } catch {
     raw = {};
   }
-  const c = raw?.word?.content ?? {};
+  const c = raw?.word?.content ?? raw?.content ?? {};
   const sentences = c?.sentence?.sentences ?? [];
   const phrases = c?.phrase?.phrases ?? [];
   const rels = c?.relWord?.rels ?? [];
@@ -63,7 +66,8 @@ export function parseWordContent(headWord: string, contentJson: string): ParsedW
 export function quickTranslation(contentJson: string): string {
   try {
     const raw = JSON.parse(contentJson) as RawRoot;
-    const t = raw?.word?.content?.trans?.[0]?.tranCn;
+    const c = raw?.word?.content ?? raw?.content;
+    const t = c?.trans?.[0]?.tranCn;
     if (t) return t;
   } catch {
     // ignore

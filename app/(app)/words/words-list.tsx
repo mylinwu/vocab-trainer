@@ -17,7 +17,7 @@ export interface ListWord {
   contentJson: string;
 }
 
-const TTS_DEBOUNCE_MS = 300;
+const TTS_DEBOUNCE_MS = 600;
 
 function playTts(word: string, lastPlayRef: React.MutableRefObject<number>, accent: string) {
   const now = Date.now();
