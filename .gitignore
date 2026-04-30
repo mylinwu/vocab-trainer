@@ -30,8 +30,14 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files (never commit real .env)
+/.env
+.env.local
+.env.production
+!.env.example
+
+# prd (production artifacts)
+prd
 
 # vercel
 .vercel
@@ -40,5 +46,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-prd
+# claude settings
 .claude
