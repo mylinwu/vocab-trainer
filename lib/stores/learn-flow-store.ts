@@ -42,6 +42,12 @@ export const useLearnFlowStore = create<LearnFlowStore>()(
     setPhase: (phase) =>
       set((s) => {
         s.phase = phase;
+        if (phase === "study" || phase === "review") {
+          for (const row of s.rows) {
+            row.clicked = false;
+            row.showTranslation = false;
+          }
+        }
       }),
 
     updateRow: (key, patch) =>

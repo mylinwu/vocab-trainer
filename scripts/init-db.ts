@@ -1,7 +1,9 @@
 import { createClient } from "@libsql/client";
-import { resolve } from "path";
+import { getRuntimeDatabaseUrl, loadProjectEnv } from "../lib/database-url";
 
-const url = process.env.DATABASE_URL!;
+loadProjectEnv();
+
+const url = getRuntimeDatabaseUrl();
 const client = createClient({ url });
 
 const schema = `
@@ -61,18 +63,17 @@ async function main() {
   const isLocal = url.startsWith("file:");
   console.log(`Connecting to: ${isLocal ? url : "[remote Turso DB]"}`);
 
-  // Execute each statement separately
   const statements = schema.split(";").map((s) => s.trim()).filter(Boolean);
   for (const stmt of statements) {
     try {
       await client.execute(stmt);
-      console.log(`✓ ${stmt.substring(0, 60)}...`);
+      console.log(`OK: ${stmt.substring(0, 60)}...`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("already exists") || msg.includes("duplicate")) {
-        console.log(`⏭  ${stmt.substring(0, 60)}... (already exists)`);
+        console.log(`Skip: ${stmt.substring(0, 60)}... (already exists)`);
       } else {
-        console.error(`✗ ${stmt.substring(0, 60)}...`);
+        console.error(`Failed: ${stmt.substring(0, 60)}...`);
         console.error(`  Error: ${msg}`);
       }
     }

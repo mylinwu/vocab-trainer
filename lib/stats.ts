@@ -32,12 +32,17 @@ function endOfToday(): Date {
 export async function loadDashboardStats(userId: string): Promise<DashboardStats> {
   const today0 = startOfToday();
   const today1 = endOfToday();
+  const now = new Date();
 
   const [totalLearned, todayLearned, todayReviewDue, byStatus, userBanks] = await Promise.all([
     prisma.userWordProgress.count({ where: { userId } }),
     prisma.userWordProgress.count({ where: { userId, createdAt: { gte: today0, lte: today1 } } }),
     prisma.userWordProgress.count({
-      where: { userId, nextReviewDate: { lte: today1 } },
+      where: {
+        userId,
+        nextReviewDate: { lte: now },
+        status: { in: ["LEARNING", "FAMILIAR", "MASTERED"] },
+      },
     }),
     prisma.userWordProgress.groupBy({ by: ["status"], where: { userId }, _count: { _all: true } }),
     prisma.userBank.findMany({ where: { userId } }),
