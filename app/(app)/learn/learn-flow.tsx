@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { X } from "lucide-react";
@@ -10,7 +10,7 @@ import styles from "./learn.module.css";
 import { useLearnFlowStore, rowKey } from "@/lib/stores/learn-flow-store";
 import { WordDetailModal } from "@/components/WordDetailModal";
 import { ttsUrl } from "@/lib/tts";
-import { markKnown, submitReview, logDetailViewed, logSessionEvent } from "./actions";
+import { markKnown, submitReviewBatch, logDetailViewed, logSessionEvent } from "./actions";
 
 const GROUP_SIZE = 5;
 const TTS_DEBOUNCE_MS = 300;
@@ -29,6 +29,8 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
   const { withLoading } = useGlobalLoading();
   const lastPlayRef = useRef(0);
   const reviewSubmittingRef = useRef(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   const phase = useLearnFlowStore((s) => s.phase);
   const rows = useLearnFlowStore((s) => s.rows);
@@ -107,34 +109,48 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
   }
 
   function endStudy() {
+    setSubmitError(null);
     setPhase("review");
     setReviewIdx(0);
+  }
+
+  async function submitLearnReviewBatch() {
+    const items = learnQueue.map((row) => ({
+      bookId: row.word.bookId,
+      wordRank: row.word.wordRank,
+      headWord: row.word.headWord,
+      remembered: row.reviewResult === "remembered",
+      detailViewed: row.detailViewed,
+    }));
+
+    await withLoading(async () => {
+      await submitReviewBatch({ items });
+    }, "正在提交复习");
   }
 
   async function answerReview(remembered: boolean) {
     if (reviewSubmittingRef.current) return;
     const cur = learnQueue[reviewIdx];
     if (!cur) return;
+    setSubmitError(null);
+    updateRow(rowKey(cur.word), { reviewResult: remembered ? "remembered" : "forgotten" });
+
+    if (reviewIdx + 1 < learnQueue.length) {
+      setReviewIdx(reviewIdx + 1);
+      return;
+    }
+
     reviewSubmittingRef.current = true;
+    setIsSubmittingReview(true);
     try {
-      await withLoading(async () => {
-        await submitReview({
-          bookId: cur.word.bookId,
-          wordRank: cur.word.wordRank,
-          headWord: cur.word.headWord,
-          remembered,
-          detailViewed: cur.detailViewed,
-        });
-      }, "正在提交复习");
-      updateRow(rowKey(cur.word), { reviewResult: remembered ? "remembered" : "forgotten" });
-      if (reviewIdx + 1 >= learnQueue.length) {
-        logSessionEvent("session_complete", { learned: learnQueue.length }).catch(() => {});
-        setPhase("done");
-      } else {
-        setReviewIdx(reviewIdx + 1);
-      }
+      await submitLearnReviewBatch();
+      logSessionEvent("session_complete", { learned: learnQueue.length }).catch(() => {});
+      setPhase("done");
+    } catch {
+      setSubmitError("提交失败，请重试本轮提交。");
     } finally {
       reviewSubmittingRef.current = false;
+      setIsSubmittingReview(false);
     }
   }
 
@@ -320,6 +336,7 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
           {reviewIdx + 1}/{learnQueue.length}
         </span>
       </div>
+      {submitError && <div className={styles.errorBox}>{submitError}</div>}
       <ul className={styles.list}>
         <li className={styles.row}>
           <button className={styles.rowMain} onClick={() => onClickRow(curKey, cur.word.headWord)}>
@@ -343,10 +360,18 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
         <button className={styles.secondaryBtn} onClick={handleBack}>
           返回
         </button>
-        <button className={styles.secondaryBtn} onClick={() => void answerReview(false)}>
+        <button
+          className={styles.secondaryBtn}
+          onClick={() => void answerReview(false)}
+          disabled={isSubmittingReview}
+        >
           没记住
         </button>
-        <button className={styles.primaryBtn} onClick={() => void answerReview(true)}>
+        <button
+          className={styles.primaryBtn}
+          onClick={() => void answerReview(true)}
+          disabled={isSubmittingReview}
+        >
           记住了
         </button>
       </div>

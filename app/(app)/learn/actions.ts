@@ -4,6 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/session";
 import { applyKnownOnPick, applySm2, gradeFromReview } from "@/lib/sm2";
 
+export type ReviewSubmissionItem = {
+  bookId: string;
+  wordRank: number;
+  headWord: string;
+  remembered: boolean;
+  detailViewed: boolean;
+};
+
 async function logEvent(userId: string, type: string, payload?: unknown) {
   try {
     await prisma.sessionEvent.create({
@@ -43,14 +51,7 @@ export async function markKnown(bookId: string, wordRank: number, headWord: stri
   await logEvent(uid, "word_known", { bookId, wordRank });
 }
 
-export async function submitReview(input: {
-  bookId: string;
-  wordRank: number;
-  headWord: string;
-  remembered: boolean;
-  detailViewed: boolean;
-}) {
-  const uid = await requireUserId();
+async function applyReviewSubmission(uid: string, input: ReviewSubmissionItem) {
   const { bookId, wordRank, headWord, remembered, detailViewed } = input;
   const existing = await prisma.userWordProgress.findUnique({
     where: { userId_bookId_wordRank: { userId: uid, bookId, wordRank } },
@@ -88,11 +89,24 @@ export async function submitReview(input: {
       reviewCount: { increment: 1 },
     },
   });
-  await logEvent(uid, remembered ? "review_remembered" : "review_forgotten", {
-    bookId,
-    wordRank,
-    detailViewed,
-  });
+}
+
+export async function submitReviewBatch(input: { items: ReviewSubmissionItem[] }) {
+  const uid = await requireUserId();
+
+  for (const item of input.items) {
+    await applyReviewSubmission(uid, item);
+  }
+
+  await Promise.all(
+    input.items.map((item) =>
+      logEvent(uid, item.remembered ? "review_remembered" : "review_forgotten", {
+        bookId: item.bookId,
+        wordRank: item.wordRank,
+        detailViewed: item.detailViewed,
+      }),
+    ),
+  );
 }
 
 export async function logDetailViewed(bookId: string, wordRank: number) {

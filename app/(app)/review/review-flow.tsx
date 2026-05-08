@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Info, X } from "lucide-react";
 import { useGlobalLoading } from "@/components/GlobalLoading";
@@ -8,7 +8,7 @@ import styles from "./review.module.css";
 import { useReviewFlowStore, rowKey } from "@/lib/stores/review-flow-store";
 import { WordDetailModal } from "@/components/WordDetailModal";
 import { ttsUrl } from "@/lib/tts";
-import { submitReview, logDetailViewed } from "../learn/actions";
+import { submitReviewBatch, logDetailViewed } from "../learn/actions";
 
 function playTts(word: string, accent: string) {
   const audio = new Audio(ttsUrl(word, accent as "us" | "uk"));
@@ -25,6 +25,8 @@ export function ReviewFlow({
   const router = useRouter();
   const { withLoading } = useGlobalLoading();
   const reviewSubmittingRef = useRef(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   const rows = useReviewFlowStore((s) => s.rows);
   const detailWord = useReviewFlowStore((s) => s.detailWord);
@@ -38,7 +40,20 @@ export function ReviewFlow({
     reset(words);
   }, [words, reset]);
 
-  const allAnswered = rows.every((r) => r.answered);
+  async function submitBatch(nextRows: typeof rows) {
+    const items = nextRows.map((row) => ({
+      bookId: row.word.bookId,
+      wordRank: row.word.wordRank,
+      headWord: row.word.headWord,
+      remembered: row.remembered === true,
+      detailViewed: row.detailViewed,
+    }));
+
+    await withLoading(async () => {
+      await submitReviewBatch({ items });
+    }, "正在提交复习");
+  }
+
   const answeredCount = rows.filter((r) => r.answered).length;
   const rememberedCount = rows.filter((r) => r.answered && r.remembered).length;
 
@@ -58,25 +73,29 @@ export function ReviewFlow({
   async function answer(idx: number, remembered: boolean) {
     const row = rows[idx];
     if (row.answered || reviewSubmittingRef.current) return;
+    setSubmitError(null);
+
+    const nextRows = rows.map((current, currentIdx) =>
+      currentIdx === idx ? { ...current, answered: true, remembered } : current,
+    );
+
+    updateRow(rowKey(row.word), { answered: true, remembered });
+
+    if (!nextRows.every((item) => item.answered)) {
+      return;
+    }
+
     reviewSubmittingRef.current = true;
+    setIsSubmittingReview(true);
     try {
-      await withLoading(async () => {
-        await submitReview({
-          bookId: row.word.bookId,
-          wordRank: row.word.wordRank,
-          headWord: row.word.headWord,
-          remembered,
-          detailViewed: row.detailViewed,
-        });
-      }, "正在提交复习");
-      updateRow(rowKey(row.word), { answered: true, remembered });
+      await submitBatch(nextRows);
+      setDone(true);
+    } catch {
+      setSubmitError("提交失败，请重试本轮提交。");
     } finally {
       reviewSubmittingRef.current = false;
+      setIsSubmittingReview(false);
     }
-  }
-
-  function finish() {
-    setDone(true);
   }
 
   if (done) {
@@ -105,6 +124,7 @@ export function ReviewFlow({
           {answeredCount}/{rows.length}
         </span>
       </div>
+      {submitError && <div className={styles.errorBox}>{submitError}</div>}
       <ul className={styles.list}>
         {rows.map((row, idx) => (
           <li
@@ -129,7 +149,7 @@ export function ReviewFlow({
                 className={`${styles.iconBtn} ${styles.iconBtnNo}`}
                 aria-label="没记住"
                 onClick={() => void answer(idx, false)}
-                disabled={row.answered}
+                disabled={row.answered || isSubmittingReview}
               >
                 <X size={16} strokeWidth={2.5} />
               </button>
@@ -137,7 +157,7 @@ export function ReviewFlow({
                 className={`${styles.iconBtn} ${styles.iconBtnYes}`}
                 aria-label="记住了"
                 onClick={() => void answer(idx, true)}
-                disabled={row.answered}
+                disabled={row.answered || isSubmittingReview}
               >
                 <Check size={16} strokeWidth={2.5} />
               </button>
@@ -149,12 +169,6 @@ export function ReviewFlow({
         <span className={styles.summary}>
           已完成 {answeredCount}/{rows.length}，记住了 {rememberedCount} 个
         </span>
-        <button className={styles.secondaryBtn} onClick={finish} disabled={!allAnswered}>
-          完成复习
-        </button>
-        <button className={styles.primaryBtn} onClick={finish} disabled={!allAnswered}>
-          返回仪表盘
-        </button>
       </div>
       {detailWord && (
         <WordDetailModal

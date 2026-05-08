@@ -162,6 +162,15 @@
 .secondaryBtn:hover { background: var(--surface-soft); }
 .secondaryBtn:disabled { opacity: .35; cursor: not-allowed; }
 
+.errorBox {
+  background: rgba(198, 69, 69, 0.08);
+  color: var(--error);
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid rgba(198, 69, 69, 0.2);
+  margin-bottom: var(--s-md);
+}
+
 @media (max-width: 768px) {
   .word { font-size: 20px; }
   .iconBtn { width: 40px; height: 40px; }
