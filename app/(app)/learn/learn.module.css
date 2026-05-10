@@ -131,7 +131,23 @@
 .iconBtnYes { color: var(--success); border-color: color-mix(in srgb, var(--success) 40%, var(--hairline)); }
 .iconBtnNo { color: var(--error); border-color: color-mix(in srgb, var(--error) 40%, var(--hairline)); }
 .iconBtnDetail { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 40%, var(--hairline)); }
-.rowDone { opacity: .5; }
+.iconBtnActive { 
+  background: var(--surface-cream-strong); 
+  border-width: 2px;
+  transform: scale(1.05);
+}
+.iconBtnActive.iconBtnYes { 
+  background: color-mix(in srgb, var(--success) 15%, var(--surface-cream-strong)); 
+  border-color: var(--success);
+}
+.iconBtnActive.iconBtnNo { 
+  background: color-mix(in srgb, var(--error) 15%, var(--surface-cream-strong)); 
+  border-color: var(--error);
+}
+.rowSelected { 
+  background: var(--surface-soft);
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--hairline));
+}
 
 .foot {
   margin-top: var(--s-lg);

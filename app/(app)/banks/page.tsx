@@ -12,7 +12,7 @@ export default async function BanksPage() {
     Promise.resolve(scanBooks()),
     prisma.userBank.findMany({ where: { userId: uid } }),
   ]);
-  const enabled = new Map(userBanks.map((u) => [u.bookId, u]));
+  const enabled = new Map<string, { sortRule: string }>(userBanks.map((u) => [u.bookId, { sortRule: u.sortRule }]));
   const items = await Promise.all(
     bookIds.map(async (bookId) => ({
       bookId,

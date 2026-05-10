@@ -73,14 +73,22 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
   function pickKnown(key: string) {
     const row = rows.find((r) => rowKey(r.word) === key);
     if (!row) return;
-    updateRow(key, { pickResult: "known" });
-    start(async () => {
-      await markKnown(row.word.bookId, row.word.wordRank, row.word.headWord);
-    });
+    // Toggle: if already known, cancel selection; otherwise mark as known
+    const newPickResult = row.pickResult === "known" ? undefined : "known";
+    updateRow(key, { pickResult: newPickResult });
+    if (newPickResult === "known") {
+      start(async () => {
+        await markKnown(row.word.bookId, row.word.wordRank, row.word.headWord);
+      });
+    }
   }
 
   function pickUnknown(key: string) {
-    updateRow(key, { pickResult: "unknown" });
+    const row = rows.find((r) => rowKey(r.word) === key);
+    if (!row) return;
+    // Toggle: if already unknown, cancel selection; otherwise mark as unknown
+    const newPickResult = row.pickResult === "unknown" ? undefined : "unknown";
+    updateRow(key, { pickResult: newPickResult });
   }
 
   function openDetail(key: string) {
@@ -208,7 +216,7 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
             return (
               <li
                 key={key}
-                className={`${styles.row} ${r.pickResult ? styles.rowDone : ""}`}
+                className={`${styles.row} ${r.pickResult ? styles.rowSelected : ""}`}
               >
                 <button
                   className={styles.rowMain}
@@ -221,17 +229,15 @@ export function LearnFlow({ words, accent }: { words: import("@/lib/scheduler").
                 </button>
                 <div className={styles.actions}>
                   <button
-                    className={`${styles.iconBtn} ${styles.iconBtnYes}`}
+                    className={`${styles.iconBtn} ${styles.iconBtnYes} ${r.pickResult === "known" ? styles.iconBtnActive : ""}`}
                     aria-label="认识"
-                    disabled={!!r.pickResult}
                     onClick={() => pickKnown(key)}
                   >
                     <Check size={16} strokeWidth={2.5} />
                   </button>
                   <button
-                    className={`${styles.iconBtn} ${styles.iconBtnNo}`}
+                    className={`${styles.iconBtn} ${styles.iconBtnNo} ${r.pickResult === "unknown" ? styles.iconBtnActive : ""}`}
                     aria-label="不认识"
-                    disabled={!!r.pickResult}
                     onClick={() => pickUnknown(key)}
                   >
                     <X size={16} strokeWidth={2.5} />
